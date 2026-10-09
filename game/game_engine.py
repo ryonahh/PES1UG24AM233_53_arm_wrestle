@@ -26,6 +26,9 @@ class GameEngine:
         self.phase_multipliers = {"BUILDING": 1.0, "SURGE": 3.5, "COOLDOWN": 0.3}
         self.ai_phase = "BUILDING"
         self.phase_start = pygame.time.get_ticks()
+        self.exhausted = False
+        self.exhaust_below = 10
+        self.recover_at = 30
         
         self.font_big = pygame.font.SysFont(None, 44)
         self.font_med = pygame.font.SysFont(None, 26)
@@ -37,18 +40,18 @@ class GameEngine:
             return
 
         if event.type == pygame.KEYDOWN:
-            if self.stamina <= 10:
+            if self.exhausted or self.stamina <= self.exhaust_below:
                 return
                 
             if event.key == pygame.K_LEFT:
                 if self.last_key != pygame.K_LEFT: 
                     self.arm_position -= 4.2
-                    self.stamina = max(0.0, self.stamina - 2.0)
+                    self.stamina = max(0.0, self.stamina - 3.0)
                     self.last_key = pygame.K_LEFT
             elif event.key == pygame.K_RIGHT:
                 if self.last_key != pygame.K_RIGHT: 
                     self.arm_position -= 4.2
-                    self.stamina = max(0.0, self.stamina - 2.0)
+                    self.stamina = max(0.0, self.stamina - 3.0)
                     self.last_key = pygame.K_RIGHT
 
     def set_ai_phase(self, phase):
@@ -67,8 +70,12 @@ class GameEngine:
         self.arm_position += force
 
         if self.stamina < self.max_stamina:
-            self.stamina = min(self.max_stamina, self.stamina + 0.8)
+            self.stamina = min(self.max_stamina, self.stamina + 0.2)
 
+        if self.stamina <= self.exhaust_below:
+            self.exhausted = True
+        elif self.exhausted and self.stamina >= self.recover_at:
+            self.exhausted = False
         if self.arm_position <= -self.target_limit:
             self.winner = "PLAYER"
             self.game_state = "GAME_OVER"
@@ -83,6 +90,7 @@ class GameEngine:
         self.winner = None
         self.game_state = "PLAYING"
         self.set_ai_phase("BUILDING")
+        self.exhausted = False
 
     def render(self, screen):
         screen.fill((25, 28, 35))
@@ -127,9 +135,20 @@ class GameEngine:
         stamina_bg = pygame.Rect(140, 448, 240, 22)
         stamina_fill = pygame.Rect(140, 448, int(240 * (self.stamina / self.max_stamina)), 22)
         pygame.draw.rect(screen, (45, 50, 60), stamina_bg, border_radius=6)
-        bar_color = (60, 210, 100) if self.stamina > 25 else (220, 60, 60)
+        blink = (pygame.time.get_ticks() // 200) % 2 == 0
+        if self.exhausted:
+            bar_color = (255, 40, 40) if blink else (120, 20, 20)
+        else:
+            bar_color = (60, 210, 100) if self.stamina > 25 else (220, 60, 60)        
         pygame.draw.rect(screen, bar_color, stamina_fill, border_radius=6)
+        if self.exhausted:
+            ex_surf = self.font_med.render("EXHAUSTED!", True, (255, 80, 80))
+            screen.blit(ex_surf, (400, 450))
 
+        if self.ai_phase == "SURGE" and self.game_state == "PLAYING" and blink:
+            warn = self.font_big.render("!! AI SURGE !!", True, (255, 170, 40))
+            screen.blit(warn, (self.width // 2 - warn.get_width() // 2, 60))
+            pygame.draw.rect(screen, (255, 120, 40), pygame.Rect(0, 0, self.width, self.height), width=6)
         if self.game_state == "GAME_OVER":
             overlay = pygame.Surface((self.width, self.height), pygame.SRCALPHA)
             overlay.fill((0, 0, 0, 200))
