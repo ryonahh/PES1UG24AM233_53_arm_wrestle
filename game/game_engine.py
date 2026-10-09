@@ -19,6 +19,13 @@ class GameEngine:
         self.winner = None
         self.game_state = "PLAYING"
         self.ai_strength = 0.35  
+                # --- AI surge cycle (Task 2) ---
+        self.build_ms = 4000
+        self.surge_ms = 1500
+        self.cooldown_ms = 2000
+        self.phase_multipliers = {"BUILDING": 1.0, "SURGE": 3.5, "COOLDOWN": 0.3}
+        self.ai_phase = "BUILDING"
+        self.phase_start = pygame.time.get_ticks()
         
         self.font_big = pygame.font.SysFont(None, 44)
         self.font_med = pygame.font.SysFont(None, 26)
@@ -44,12 +51,29 @@ class GameEngine:
                     self.stamina = max(0.0, self.stamina - 2.0)
                     self.last_key = pygame.K_RIGHT
 
+    def set_ai_phase(self, phase):
+        self.ai_phase = phase
+        self.phase_start = pygame.time.get_ticks()
+        print("AI phase:", phase)  # TEMP: delete after testing
+
+    def update_ai_phase(self):
+        elapsed = pygame.time.get_ticks() - self.phase_start
+        if self.ai_phase == "BUILDING" and elapsed >= self.build_ms:
+            self.set_ai_phase("SURGE")
+        elif self.ai_phase == "SURGE" and elapsed >= self.surge_ms:
+            self.set_ai_phase("COOLDOWN")
+        elif self.ai_phase == "COOLDOWN" and elapsed >= self.cooldown_ms:
+            self.set_ai_phase("BUILDING")
+
+    
     def update(self):
         if self.game_state != "PLAYING":
             return
 
+        self.update_ai_phase()
         ai_variance = random.uniform(0.3, 1.0)
-        self.arm_position += self.ai_strength * ai_variance
+        force = self.ai_strength * ai_variance * self.phase_multipliers[self.ai_phase]
+        self.arm_position += force
 
         if self.stamina < self.max_stamina:
             self.stamina = min(self.max_stamina, self.stamina + 0.8)
@@ -67,6 +91,7 @@ class GameEngine:
         self.last_key = None
         self.winner = None
         self.game_state = "PLAYING"
+        self.set_ai_phase("BUILDING")
 
     def render(self, screen):
         screen.fill((25, 28, 35))
