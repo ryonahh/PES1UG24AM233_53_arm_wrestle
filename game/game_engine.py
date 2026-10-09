@@ -46,19 +46,26 @@ class GameEngine:
             if event.key == pygame.K_LEFT:
                 if self.last_key != pygame.K_LEFT: 
                     self.arm_position -= 4.2
-                    self.stamina = max(0.0, self.stamina - 3.0)
+                    self.stamina = max(0.0, self.stamina - 5.0)
                     self.last_key = pygame.K_LEFT
             elif event.key == pygame.K_RIGHT:
                 if self.last_key != pygame.K_RIGHT: 
                     self.arm_position -= 4.2
-                    self.stamina = max(0.0, self.stamina - 3.0)
+                    self.stamina = max(0.0, self.stamina - 5.0)
                     self.last_key = pygame.K_RIGHT
 
     def set_ai_phase(self, phase):
         self.ai_phase = phase
         self.phase_start = pygame.time.get_ticks()
-        print("AI phase:", phase)  # TEMP: delete after testing
 
+    def update_ai_phase(self):
+        elapsed = pygame.time.get_ticks() - self.phase_start
+        if self.ai_phase == "BUILDING" and elapsed >= self.build_ms:
+            self.set_ai_phase("SURGE")
+        elif self.ai_phase == "SURGE" and elapsed >= self.surge_ms:
+            self.set_ai_phase("COOLDOWN")
+        elif self.ai_phase == "COOLDOWN" and elapsed >= self.cooldown_ms:
+            self.set_ai_phase("BUILDING")
     
     def update(self):
         if self.game_state != "PLAYING":
